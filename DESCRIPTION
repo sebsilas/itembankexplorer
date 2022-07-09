@@ -1,0 +1,28 @@
+Package: itembankexplorer
+Type: Package
+Title: What the Package Does (Title Case)
+Version: 0.1.0
+Author: Who wrote it
+Maintainer: The package maintainer <yourself@somewhere.net>
+Description: More about what it does (maybe more than one line)
+    Use four spaces when indenting paragraphs within the Description.
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    dplyr,
+    DT,
+    ggplot2,
+    igraph,
+    magrittr,
+    musicassessr (>= 0.0.0.9000),
+    purrr,
+    rjson,
+    shiny,
+    shinycssloaders,
+    stringr,
+    visNetwork,
+    writexl (>= 1.4.0)
+RoxygenNote: 7.1.1
+Remotes:  
+    ropensci/writexl
