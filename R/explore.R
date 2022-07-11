@@ -17,7 +17,8 @@ item_bank_explorer <- function(item_bank) {
   ui <- shiny::fluidPage(
 
 
-    musicassessr::include_musicassessr_js(record_audio = FALSE),
+    musicassessr::include_musicassessr_js(record_audio = FALSE,
+                                          visual_notation = TRUE),
 
     shiny::tags$h2("Corpus Explorer"),
 
@@ -26,8 +27,13 @@ item_bank_explorer <- function(item_bank) {
     #                    choices = c("Berkowitz: ngram",
     #                                "Berkowitz: phrases")),
 
+    shiny::tags$br(),
+
     shiny::downloadButton("dl",
                           "Download Corpus"),
+
+    shiny::tags$br(),
+    shiny::tags$br(),
 
     shiny::tabsetPanel(type = "tabs",
                 filter_item_bank_tab(nms, item_bank),
@@ -45,27 +51,13 @@ item_bank_explorer <- function(item_bank) {
       purrr::reduce(names(nms), sliderServer, .init = tmp_df())
     })
 
-
-    output$melodies <- DT::renderDataTable(tmp_df(), selection = 'single', escape = FALSE,
-                                           options = list(searching = TRUE, pageLength = 20))
-
-
     output$melodyNotation <- shiny::renderUI({
 
-      if (is.null(input$melodies_rows_selected)) {
-        print("nothing selected")
+      if (is.null(input$df_rows_selected)) {
+        print("No Melody Selected.")
       }
       else {
-        #print(item_bank[[input$melodies_rows_selected, "melody"]])
-        #print(itembankr::str_mel_to_vector(item_bank[[input$melodies_rows_selected, "melody"]], sep = ","))
-        melody <- itembankr::str_mel_to_vector(item_bank[[input$melodies_rows_selected, "melody"]], sep = ",")
-        # print(melody)
-        # ngrams <- bind_rows(lapply(3:length(melody), function(x) get_all_ngrams(melody, N = x)))
-        # print(ngrams)
-        #
-        # sim.matrix <- combn(ngrams$value, 2, FUN = function(x) ngrukkon(itembankr::str_mel_to_vector(x[1], sep = ","),
-        #                                             itembankr::str_mel_to_vector(x[2], sep = ",")))
-        # print(sim.matrix)
+        melody <- filtered_df() %>% grab_mel(input$df_rows_selected)
         abs_melody <- cumsum(melody) + 60
         musicassessr::present_stimuli_midi_notes_both(stimuli = abs_melody, note_length = 0.5)
       }
@@ -73,20 +65,18 @@ item_bank_explorer <- function(item_bank) {
 
     output$network <- visNetwork::renderVisNetwork({
 
-      if (is.null(input$melodies_rows_selected)) {
+      if (is.null(input$df_rows_selected)) {
         NULL
       }
       else {
-        melody <- itembankr::str_mel_to_vector(item_bank[[input$melodies_rows_selected, "melody"]], sep = ",")
+        melody <- filtered_df() %>% grab_mel(input$df_rows_selected)
         sim_matrix_to_graph(melody)
       }
     })
 
 
-
-
-    output$df <- DT::renderDataTable(filtered_df(), selection = 'single', escape = FALSE,
-                                           options = list(searching = TRUE, pageLength = 20))
+    output$df <- DT::renderDT(filtered_df(), selection = 'single', escape = FALSE,
+                                    options = list(searching = TRUE, pageLength = 20))
 
     output$histogram <- renderPlot({
       filtered_df() %>% itembankr::hist_item_bank()
@@ -106,7 +96,8 @@ item_bank_explorer <- function(item_bank) {
 
 
 sim_matrix_to_graph <- function(melody) {
-
+  print('sim_matrix')
+  print(melody)
   ngrams <- dplyr::bind_rows(lapply(3:length(melody), function(x) itembankr::get_all_ngrams(melody, N = x)))
 
   sim.matrix <- combn(ngrams$value, 2, FUN = function(x) musicassessr::ngrukkon(itembankr::str_mel_to_vector(x[1], sep = ","),
@@ -114,18 +105,7 @@ sim_matrix_to_graph <- function(melody) {
 
   sim.matrix <- matrix(sim.matrix, ncol = length(ngrams$value), nrow = length(ngrams$value))
 
-  #html <- paste0("<p style = 'color: red;'>",ngrams$value,'</p>')
-
-  #nodes <- data.frame(id = ngrams$value, label = ngrams$value)
-  #nodes <- data.frame(id = ngrams$value, label = "\uf286 <b>This</b> is an\n<i>html</i> <b><i>multi-</i>font</b> <code>label</code>'")
   nodes <- data.frame(id = ngrams$value, label = "\uf286 <div id = 'sheet_music'></div> <b>This</b> is an\n<i>html</i> <b><i>multi-</i>font</b> <code>label</code>'")
-
-  #print(nodes)
-  #print(present_stimuli_midi_notes_visual(stimuli = 60:65))
-  #nodes <- data.frame(id = ngrams$value, label = paste0('\uf286 ', present_stimuli_midi_notes_visual(stimuli = 60:65)))
-  # nodes <- data.frame(id = ngrams$value, label = lapply(ngrams$value, function(x) paste0('\uf286 <b> This </b> is')))
-  # nodes <- data.frame(id = ngrams$value, label = paste0('\uf286 <div><b><i>This</i></b></div> is'))
-  # nodes <- data.frame(id = ngrams$value, label = rep(HTML(paste0('\uf286 <div><b><i>This</i></b></div> is')), length(ngrams$value)))
 
   # # put row names to col names
   row.names(sim.matrix) <- ngrams$value
@@ -160,18 +140,18 @@ similarity_tab <- function() {
 
                   musicassessr::present_stimuli_midi_notes_visual(stimuli = 60:65, present_div = FALSE),
 
-                  visNetwork::visNetworkOutput("network"),
+                  visNetwork::visNetworkOutput("network")
 
-                  shiny::htmlOutput('melodyNotation'),
-
-                  DT::dataTableOutput("melodies")
   )
 }
 
 filter_item_bank_tab <- function(nms, item_bank) {
 
   shiny::tabPanel("View and Filter",
-                  shiny::plotOutput("histogram") %>% shinycssloaders::withSpinner(color="#8bcf42"),
+                  shiny::tags$br(),
+                  shiny::htmlOutput('melodyNotation'),
+                    shiny::plotOutput("histogram") %>%
+                      shinycssloaders::withSpinner(color="#8bcf42"),
 
                   purrr::map(names(nms), function(n) {
                     sliderUI(id = n, item_bank = item_bank)
@@ -182,6 +162,12 @@ filter_item_bank_tab <- function(nms, item_bank) {
 }
 
 
+grab_mel <- function(df, row) {
+  df %>%
+    dplyr::slice(row) %>%
+    dplyr::pull(melody) %>%
+    itembankr::str_mel_to_vector()
+}
 
 sliderUI <- function(id, item_bank) {
 
@@ -200,8 +186,7 @@ sliderUI <- function(id, item_bank) {
 }
 
 sliderServer <- function(df, id) {
-  print('sliderServer')
-  print(id)
+
   shiny::moduleServer(
     id,
     function(input, output, session) {
