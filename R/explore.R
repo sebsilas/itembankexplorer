@@ -59,7 +59,10 @@ item_bank_explorer <- function(item_bank) {
       else {
         melody <- filtered_df() %>% grab_mel(input$df_rows_selected)
         abs_melody <- cumsum(melody) + 60
-        musicassessr::present_stimuli_midi_notes_both(stimuli = abs_melody, note_length = 0.5)
+        durations <- filtered_df() %>% dplyr::slice(input$df_rows_selected) %>%
+          dplyr::pull(durations) %>% itembankr::str_mel_to_vector()
+        musicassessr::present_stimuli_midi_notes_both(stimuli = abs_melody,
+                                                      durations = durations)
       }
     })
 
